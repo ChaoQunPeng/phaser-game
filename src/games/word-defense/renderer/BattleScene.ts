@@ -3,6 +3,7 @@ import { GameController } from '../application/GameController.js';
 import { battleConfig } from '../data/battleConfig.js';
 import type { GameEvent, GameSnapshot } from '../core/types.js';
 import { MapSystem } from '../modules/MapSystem.js';
+import { resolveUnitSynthesis } from '../modules/UnitSynthesis.js';
 import { GridView } from './GridView.js';
 import { DefenderView, MonsterView } from './EntityViews.js';
 import { BattleHud } from '../ui/BattleHud.js';
@@ -204,16 +205,17 @@ export class BattleScene extends Phaser.Scene {
       ? (typeof entry === 'object' ? entry?.definitionId : entry) : source?.definitionId;
     const materialLevel = this.selectedSlot !== undefined
       ? (typeof entry === 'object' ? entry?.level : 1) : source?.level;
-    const canMerge = target && target.id !== source?.id && target.definitionId === materialKind
-      && target.level === materialLevel && target.level < 5;
+    const canMerge = target && target.id !== source?.id && materialKind && materialKind !== 'hoe' && materialLevel
+      && resolveUnitSynthesis(battleConfig, materialKind, materialLevel, target.definitionId, target.level);
     const active = state.status === 'ready' || state.status === 'playing';
     const poolSlot = this.hud.summonSlotAt(x, y);
     const poolEntry = poolSlot !== undefined ? state.summonPool[poolSlot] : null;
     const poolKind = poolEntry && typeof poolEntry === 'object' ? poolEntry.definitionId : poolEntry;
     const poolLevel = poolEntry && typeof poolEntry === 'object' ? poolEntry.level : 1;
-    // 棋盘与池内使用相同的同名同级规则，仅合法目标显示高亮。
-    const canMergeIntoPool = active && poolEntry && poolKind !== 'hoe' && poolKind === materialKind
-      && poolLevel === materialLevel && poolLevel < 5 && poolSlot !== this.selectedSlot;
+    // 高亮复用核心配方，支持异字拼名，同时排除完整英雄的重复合并。
+    const canMergeIntoPool = active && poolKind && poolKind !== 'hoe' && materialKind && materialKind !== 'hoe'
+      && materialLevel && poolSlot !== this.selectedSlot
+      && resolveUnitSynthesis(battleConfig, materialKind, materialLevel, poolKind, poolLevel);
     this.hud.previewMerge(canMergeIntoPool ? poolSlot : undefined);
     const valid = active && this.selectedSlot !== undefined
       && state.summonPool[this.selectedSlot] !== null

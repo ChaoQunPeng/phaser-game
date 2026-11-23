@@ -1,8 +1,9 @@
 import Phaser from 'phaser';
-import type { BattleConfig, Cell, GameSnapshot } from '../core/types.js';
+import type { BattleConfig, Cell, GameSnapshot, UnitKind } from '../core/types.js';
 import { MapSystem } from '../modules/MapSystem.js';
 import { GridView } from './GridView.js';
-import { battleTheme as theme, textStyle } from '../ui/theme.js';
+import { battleTheme as theme, textStyle, cssColor } from '../ui/theme.js';
+import { unitCaption, unitGlyphColor, unitGlyphSize } from '../ui/unitAppearance.js';
 
 /** 稳定单位视图：以汉字展示兵种，容器承载位置和动画。 */
 interface PieceView { root: Phaser.GameObjects.Container; glyph: Phaser.GameObjects.Text }
@@ -18,7 +19,7 @@ function createPiece(scene: Phaser.Scene, label: string, enemy: boolean): PieceV
 
 /** 单位棋子以稳定 ID 复用；部署与攻击动画只影响视图。 */
 export class DefenderView {
-  private readonly views = new Map<string, PieceView & { levelLabel: Phaser.GameObjects.Text; level: number }>();
+  private readonly views = new Map<string, PieceView & { levelLabel: Phaser.GameObjects.Text; level: number; definitionId: UnitKind }>();
   private draggedId?: string;
   constructor(private readonly scene: Phaser.Scene, private readonly grid: GridView, private readonly config: BattleConfig) {}
 
@@ -28,14 +29,16 @@ export class DefenderView {
     const live = new Set(state.defenders.map(unit => unit.id));
     for (const [id, view] of this.views) if (!live.has(id)) { this.scene.tweens.killTweensOf(view.root); view.root.destroy(); this.views.delete(id); }
     for (const unit of state.defenders) {
+      const definition = this.config.units[unit.definitionId];
       if (!this.views.has(unit.id)) {
         const point = this.grid.toPixel(unit.cell);
-        const piece = createPiece(this.scene, this.config.units[unit.definitionId].label, false);
+        const piece = createPiece(this.scene, definition.label, false);
+        piece.glyph.setFontSize(unitGlyphSize(definition, theme.fontSizes.unit)).setColor(cssColor(unitGlyphColor(definition)));
         // 等级放在棋子下缘，使用正文字体，不依赖毛笔字库是否包含数字。
-        const levelLabel = this.scene.add.text(0, 19, `${unit.level}级`, textStyle(11, theme.colors.ally))
+        const levelLabel = this.scene.add.text(0, 19, unitCaption(definition, unit.level), textStyle(10, unitGlyphColor(definition)))
           .setOrigin(0.5).setBackgroundColor('#faf5e9');
         piece.root.add(levelLabel);
-        const view = { ...piece, levelLabel, level: unit.level };
+        const view = { ...piece, levelLabel, level: unit.level, definitionId: unit.definitionId };
         view.root.setPosition(point.x, point.y).setScale(0.7).setAlpha(0.5);
         this.scene.tweens.add({ targets: view.root, scale: 1, alpha: 1, duration: theme.motion.deployMs, ease: 'Back.Out' });
         this.views.set(unit.id, view);
@@ -46,9 +49,13 @@ export class DefenderView {
         const point = this.grid.toPixel(unit.cell);
         view.root.setPosition(point.x, point.y).setDepth(4);
       }
-      if (view.level !== unit.level) {
+      if (view.level !== unit.level || view.definitionId !== unit.definitionId) {
         view.level = unit.level;
-        view.levelLabel.setText(`${unit.level}级`);
+        view.definitionId = unit.definitionId;
+        // 目标实例 ID 保持不变，拼字后同步名称、类别与字号，避免仍显示原来的单字。
+        view.glyph.setText(definition.label).setFontSize(unitGlyphSize(definition, theme.fontSizes.unit))
+          .setColor(cssColor(unitGlyphColor(definition)));
+        view.levelLabel.setText(unitCaption(definition, unit.level)).setColor(cssColor(unitGlyphColor(definition)));
         // 合并反馈只缩放棋子，升级数值由核心命令确定。
         this.scene.tweens.killTweensOf(view.root);
         view.root.setScale(1).setAlpha(1);

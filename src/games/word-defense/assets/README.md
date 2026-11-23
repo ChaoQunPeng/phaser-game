@@ -1,6 +1,6 @@
 # 战斗界面字体
 
-`battle-brush.woff2` 为 Ma Shan Zheng 毛笔字体的局部字形版本，包含兵种和「锄」字。仅用于标题、印章、兵种卡与棋子；军情、数值和说明使用易读的系统字体。
+`battle-brush.woff2` 为 Ma Shan Zheng 毛笔字体的局部字形版本，包含兵种、「锄」及七位英雄姓名所需字形。仅用于标题、印章、兵种卡与棋子；军情、数值和说明使用易读的系统字体。
 
 - 来源：https://github.com/google/fonts/tree/main/ofl/mashanzheng
 - 原始文件：`MaShanZheng-Regular.ttf`

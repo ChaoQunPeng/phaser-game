@@ -1,6 +1,11 @@
 /** P1 的逻辑坐标与规则契约；不依赖渲染或浏览器。 */
 export interface Cell { x: number; y: number }
-export type UnitKind = 'bow' | 'spear' | 'sword' | 'cavalry';
+export type BasicUnitKind = 'bow' | 'spear' | 'sword' | 'cavalry';
+export type HeroKind = '赵云' | '张飞' | '关羽' | '马超' | '黄忠' | '孙悟空' | '二郎神';
+export type HeroCharacter = '赵' | '云' | '张' | '飞' | '关' | '羽' | '马' | '超' | '黄' | '忠' | '孙' | '悟' | '空' | '二' | '郎' | '神';
+/** 三字英雄允许任意两字先组成未激活的中间材料。 */
+export type HeroFragmentKind = HeroCharacter | '孙悟' | '孙空' | '悟空' | '二郎' | '二神' | '郎神';
+export type UnitKind = BasicUnitKind | HeroKind | HeroFragmentKind;
 export type GameStatus = 'ready' | 'playing' | 'paused' | 'victory' | 'defeat';
 export interface UnitDefinition {
   id: UnitKind;
@@ -9,6 +14,9 @@ export interface UnitDefinition {
   attackMode: 'single' | 'area';
   attack: number;
   attackIntervalMs: number;
+  /** 未标记的现有兵种属于基础单位；碎字无战斗能力，英雄只能击杀成长。 */
+  category?: 'fragment' | 'hero';
+  heroClass?: 'legend' | 'myth';
 }
 export interface DefenderState {
   id: string;
@@ -44,6 +52,8 @@ export interface BattleConfig {
   initialGold: number;
   initialOpenCells: Cell[];
   hoeChance: number;
+  /** 初始召唤、刷新和回池共用同一容量。 */
+  summonPoolSize: number;
   refreshCost: number;
   fixedStepMs: number;
   maxCatchUpSteps: number;

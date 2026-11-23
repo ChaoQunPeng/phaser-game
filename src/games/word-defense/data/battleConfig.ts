@@ -1,4 +1,5 @@
 import type { BattleConfig, Cell } from '../core/types.js';
+import { heroDefinitions } from './heroes.js';
 
 /** 群攻溅射按目标周围的直线距离计算。 */
 const distance = (a: Cell, b: Cell): number => Math.hypot(a.x - b.x, a.y - b.y);
@@ -21,14 +22,15 @@ export const battleConfig: BattleConfig = {
     ] },
   },
   initialHp: 10,
-  // 每局启动资金与手动刷新价格，金币不足时不允许刷新。
-  initialGold: 5, refreshCost: 5,
+  // 调试阶段刷新设为 0，可无限免费刷新，方便收集英雄名字和调试合成。
+  initialGold: 5, refreshCost: 0,
   // 初始开放第六行的四个指定格子；其余非路径格需消耗锄头开垦。
   initialOpenCells: [{ x: 3, y: 6 }, { x: 4, y: 6 }, { x: 5, y: 6 }, { x: 6, y: 6 }],
-  // 每槽 20% 概率抽到锄头，五槽平均约一把，缓解开垦道具不足。
-  hoeChance: 0.2,
+  // 六槽共用刷新与回池容量；每槽 20% 概率抽到锄头，平均每池 1.2 把。
+  hoeChance: 0.2, summonPoolSize: 6,
   fixedStepMs: 50, maxCatchUpSteps: 8, preparationMs: 3000,
   units: {
+    ...heroDefinitions,
     bow: { id: 'bow', label: '弓', range: 5, attackMode: 'single', attack: 9, attackIntervalMs: 700 },
     spear: { id: 'spear', label: '枪', range: 4, attackMode: 'area', attack: 7, attackIntervalMs: 1000 },
     sword: { id: 'sword', label: '刀', range: 1, attackMode: 'single', attack: 17, attackIntervalMs: 550 },

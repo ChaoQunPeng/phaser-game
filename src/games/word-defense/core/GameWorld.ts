@@ -5,6 +5,7 @@ import { UnitSystem } from '../modules/UnitSystem.js';
 import { MonsterSystem } from '../modules/MonsterSystem.js';
 import { CombatSystem } from '../modules/CombatSystem.js';
 import { WaveSystem } from '../modules/WaveSystem.js';
+import { heroBalance } from '../data/heroes.js';
 
 /** 世界编排系统和胜负；外部只能通过命令或生命周期方法更改状态。 */
 export class GameWorld {
@@ -23,7 +24,7 @@ export class GameWorld {
     this.state = this.initialState();
     this.clock = new GameClock(config.fixedStepMs, config.maxCatchUpSteps);
     this.map = new MapSystem(config.map);
-    this.units = new UnitSystem(this.map);
+    this.units = new UnitSystem(this.map, config);
     this.monsters = new MonsterSystem(config);
     this.combat = new CombatSystem(config, this.map);
     this.waves = new WaveSystem(config);
@@ -37,10 +38,18 @@ export class GameWorld {
       summonPool: this.createSummonPool(), openCells: this.config.initialOpenCells.map(cell => ({ ...cell })), defenders: [], monsters: [] };
   }
 
-  /** 五个槽位独立抽取，按配置概率抽取锄头，其余等概率抽取基础兵种，允许重复；初始和刷新使用相同规则。 */
+  /** 每槽独立抽取锄头、单字英雄材料或基础兵种；完整英雄必须集齐名字后形成。 */
   private createSummonPool(): GameState['summonPool'] {
-    const kinds = Object.values(this.config.units).map(unit => unit.id);
-    return Array.from({ length: 5 }, () => Math.random() < this.config.hoeChance ? 'hoe' : kinds[Math.floor(Math.random() * kinds.length)]);
+    const definitions = Object.values(this.config.units);
+    const basics = definitions.filter(unit => !unit.category).map(unit => unit.id);
+    const fragments = definitions.filter(unit => unit.category === 'fragment' && unit.label.length === 1).map(unit => unit.id);
+    return Array.from({ length: this.config.summonPoolSize }, () => {
+      const roll = Math.random();
+      if (roll < this.config.hoeChance) return 'hoe';
+      // 英雄材料概率集中在 heroBalance，基础兵种使用剩余概率。
+      const candidates = roll < this.config.hoeChance + heroBalance.fragmentChance ? fragments : basics;
+      return candidates[Math.floor(Math.random() * candidates.length)];
+    });
   }
 
   /** 就绪阶段可先部署，玩家主动开始后才刷怪。 */
@@ -53,7 +62,7 @@ export class GameWorld {
   restart(): void {
     this.state = this.initialState(); this.events = []; this.clock.reset();
     this.monsterRenderDelayMs = 0;
-    this.units = new UnitSystem(this.map); this.waves = new WaveSystem(this.config);
+    this.units = new UnitSystem(this.map, this.config); this.waves = new WaveSystem(this.config);
   }
 
   /** 渲染帧只驱动固定步长；终局与暂停不会推进时间。 */
@@ -96,9 +105,9 @@ export class GameWorld {
       case 'REFRESH_POOL': {
         if (this.state.gold < this.state.refreshCost) return { ok: false, reason: '金币不足' };
         // 刷新替换整池，未使用的旧单位一并替换，不影响已部署棋子。
-        // 按当前价格扣费后再提高下一次价格，失败刷新不会涨价。
+        // 调试配置为免费时始终保持零费用；付费配置仍在成功刷新后递增。
         this.state.gold -= this.state.refreshCost;
-        this.state.refreshCost++;
+        if (this.config.refreshCost > 0) this.state.refreshCost++;
         this.state.summonPool = this.createSummonPool();
         return { ok: true };
       }
