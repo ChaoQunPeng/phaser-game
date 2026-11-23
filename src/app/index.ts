@@ -1,47 +1,73 @@
 import './style.css';
 import type Phaser from 'phaser';
 import { games } from '../games';
-import type { GameDefinition } from './types';
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
-// 悬浮导航独立于游戏画布，切换游戏时保持入口可用。
-app.innerHTML = `<aside class="game-sidebar" aria-labelledby="game-list-title"><span class="eyebrow">GAME LIBRARY</span><h2 id="game-list-title">游戏列表</h2><nav id="games" aria-label="选择游戏"></nav></aside><main><header><span class="eyebrow">MY GAME COLLECTION</span><h1>小游戏合集</h1><p>每个想法，从这里开始。</p></header><section class="toolbar"><h2 id="title"></h2><button id="restart" type="button">重新开始</button></section><p id="description"></p><div id="game" aria-label="游戏画面"></div></main>`;
-const navigation = document.querySelector<HTMLElement>('#games')!;
-const parent = document.querySelector<HTMLDivElement>('#game')!;
-const title = document.querySelector<HTMLElement>('#title')!;
-const description = document.querySelector<HTMLElement>('#description')!;
-let activeGame: Phaser.Game;
-let activeDefinition: GameDefinition;
+// 根布局只保留固定导航和路由出口，具体页面交给对应游戏创建。
+app.innerHTML = '<nav class="app-navigation" tabindex="0" aria-label="游戏导航"><a href="/">游戏列表</a></nav><div id="route-outlet"></div>';
+const navigation = app.querySelector<HTMLElement>('.app-navigation')!;
+const outlet = app.querySelector<HTMLDivElement>('#route-outlet')!;
+let activeGame: Phaser.Game | undefined;
+let isDestroying = false;
 
-/** 等 Phaser 完成销毁后再创建实例，避免快速切换时旧实例清除新画布。 */
-function startGame(definition: GameDefinition): void {
-  activeDefinition = definition;
-  title.textContent = definition.title;
-  description.textContent = definition.description;
-  for (const button of navigation.querySelectorAll('button')) {
-    button.setAttribute('aria-pressed', String(button.dataset.game === definition.id));
+for (const game of games) {
+  const link = document.createElement('a');
+  link.href = `/games/${game.id}`;
+  link.textContent = game.title;
+  navigation.append(link);
+}
+
+/** 根据当前地址渲染页面；游戏拥有出口内的全部内容及样式。 */
+function renderRoute(): void {
+  const path = window.location.pathname.replace(/\/$/, '') || '/';
+  const definition = games.find((game) => `/games/${game.id}` === path);
+  for (const link of navigation.querySelectorAll('a')) {
+    if (link.pathname === path) link.setAttribute('aria-current', 'page');
+    else link.removeAttribute('aria-current');
   }
-  activeGame = definition.create(parent);
-  activeGame.events.once('destroy', () => {
-    // Phaser 在下一帧销毁；微任务让旧实例完成资源清理后再启动新实例。
-    queueMicrotask(() => startGame(activeDefinition));
-  });
+  outlet.replaceChildren();
+  if (definition) {
+    document.title = `${definition.title} · 小游戏合集`;
+    activeGame = definition.create(outlet);
+    return;
+  }
+  document.title = '小游戏合集';
+  const page = document.createElement('main');
+  page.className = 'library-page';
+  page.innerHTML = path === '/'
+    ? '<h1>小游戏合集</h1><p>从导航中选择游戏开始。</p>'
+    : '<h1>页面不存在</h1><p>请从导航中选择游戏。</p>';
+  outlet.append(page);
 }
 
-/** 切换只更新目标并请求销毁，连续点击会以最后选择的游戏为准。 */
-function selectGame(definition: GameDefinition): void {
-  activeDefinition = definition;
-  activeGame.destroy(true);
+/** Phaser 延迟销毁，完成清理后再更新出口，连续导航以最新地址为准。 */
+function updateRoute(): void {
+  if (activeGame) {
+    const previousGame = activeGame;
+    // 销毁期间保留实例标记，避免重复注册销毁回调。
+    if (isDestroying) return;
+    isDestroying = true;
+    previousGame.events.once('destroy', () => {
+      queueMicrotask(() => {
+        activeGame = undefined;
+        isDestroying = false;
+        renderRoute();
+      });
+    });
+    previousGame.destroy(true);
+    return;
+  }
+  renderRoute();
 }
 
-for (const definition of games) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.dataset.game = definition.id;
-  button.textContent = definition.title;
-  button.addEventListener('click', () => selectGame(definition));
-  navigation.append(button);
-}
-
-document.querySelector<HTMLButtonElement>('#restart')!.addEventListener('click', () => selectGame(activeDefinition));
-startGame(games[0]);
+// 普通点击使用浏览器历史切换路由，保留修饰键和新标签页的原生链接行为。
+navigation.addEventListener('click', (event) => {
+  const link = (event.target as HTMLElement).closest<HTMLAnchorElement>('a');
+  if (!link || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+  event.preventDefault();
+  if (window.location.pathname === link.pathname) return;
+  window.history.pushState(null, '', link.pathname);
+  updateRoute();
+});
+window.addEventListener('popstate', updateRoute);
+renderRoute();

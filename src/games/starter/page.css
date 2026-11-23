@@ -1,0 +1,4 @@
+/* 本游戏独立管理页面背景、画布尺寸和布局。 */
+.starter-page { min-height: 100dvh; display: flex; justify-content: center; align-items: flex-start; background: #101a2b; }
+.starter-canvas { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; }
+.starter-canvas canvas { display: block; }

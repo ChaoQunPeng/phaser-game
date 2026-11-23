@@ -17,7 +17,7 @@ npm run dev
 src/
   main.ts                     # 应用启动
   app/                        # 合集公共功能，不放具体游戏玩法
-    index.ts                  # 悬浮导航、切换、重启与实例管理
+    index.ts                  # 固定导航、路由出口与实例管理
     style.css                 # 合集界面样式
     types.ts                  # 游戏注册契约 GameDefinition
   games/
@@ -32,18 +32,20 @@ src/
 
 每个游戏的场景、玩法逻辑、数值配置、类型和素材都归属自己的文件夹，不引用其他游戏的内部文件。游戏内容增加时，再按需要在游戏文件夹中添加 systems/（玩法系统）、objects/（游戏对象）、config/（数值配置）等目录，不提前创建空目录。
 
-app/ 只负责合集界面和实例生命周期；games/index.ts 只负责登记游戏。确实被多个游戏复用的能力再提取为公共模块。
+app/ 只负责根导航、路由出口和实例生命周期；games/index.ts 只负责登记游戏。确实被多个游戏复用的能力再提取为公共模块。
 
 ## 新增游戏
 
 1. 复制 src/games/starter/，重命名为游戏目录，例如 tower-defense/。
 2. 修改 index.ts 中的导出名称、唯一 id、标题、介绍和场景配置。
 3. 在该目录的 scenes/ 中开发场景，素材放在自己的 assets/ 下。
-4. 在 src/games/index.ts 中导入该游戏定义并加入 games 数组，悬浮栏自动显示入口。
+4. 在 src/games/index.ts 中导入该游戏定义并加入 games 数组，首页自动显示入口。
 
 素材通过 TypeScript import 获取 URL，再传给 Phaser 的加载方法，路径随游戏目录一起维护。public/ 仅用于需要保持原始 URL 的站点公共文件。
 
-每次切换游戏会销毁旧 Phaser 实例，再启动所选游戏。
+首页 `/` 展示游戏列表，点击导航后通过浏览器历史切换到 `/games/<id>`（例如 `/games/word-defense` 和 `/games/starter`）。根布局固定保留导航，每个游戏在路由出口中自行创建完整页面并管理自己的样式，不附加公共标题、说明或重启按钮。支持浏览器前进、后退。
+
+部署时需将这些游戏路径回退到 `index.html`，以支持直接访问和刷新；Vite 开发服务器默认支持此行为。
 
 ## 命令
 

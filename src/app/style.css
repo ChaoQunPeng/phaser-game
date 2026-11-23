@@ -1,36 +1,23 @@
-/* 入口页负责导航和布局；游戏内部画面由各自的 Phaser 场景管理。 */
-:root { font-family: system-ui, sans-serif; color: #e5edf9; background: #0a1020; color-scheme: dark; }
-* { box-sizing: border-box; }
+/* 根布局仅提供导航和出口，不设置游戏的背景、画布比例或内容样式。 */
 body { margin: 0; }
-main { max-width: 1120px; margin: 0 auto; padding: 48px 32px; }
-/* 为左侧悬浮栏预留空间，防止导航遮住游戏画面。 */
-#app { padding-left: 240px; }
-.eyebrow { color: #55d6be; font-size: 12px; letter-spacing: 3px; }
-h1 { font-size: 36px; margin: 12px 0; }
-p { color: #a7b7d0; line-height: 1.6; }
-/* 游戏增加时在栏内滚动，保持主画面和导航位置稳定。 */
-.game-sidebar { position: fixed; left: 20px; top: 50%; transform: translateY(-50%); width: 220px; max-height: calc(100dvh - 40px); overflow-y: auto; padding: 22px 16px; border: 1px solid #283650; border-radius: 18px; background: rgba(16, 26, 43, 0.94); box-shadow: 0 16px 48px #0005; backdrop-filter: blur(16px); z-index: 10; }
-.game-sidebar .eyebrow { font-size: 10px; letter-spacing: 2px; }
-.game-sidebar h2 { margin: 12px 0 20px; font-size: 18px; }
-#games { display: flex; flex-direction: column; gap: 10px; }
-#games button { width: 100%; text-align: left; overflow-wrap: anywhere; }
-#games button[aria-pressed="true"] { background: #153b3b; box-shadow: inset 3px 0 #55d6be; }
-button { padding: 10px 18px; border: 1px solid #344560; border-radius: 8px; background: #182339; color: inherit; cursor: pointer; }
-button:hover, button[aria-pressed="true"] { border-color: #55d6be; color: #55d6be; }
-button:focus-visible { outline: 2px solid #55d6be; outline-offset: 3px; }
-.toolbar { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
-h2 { font-size: 22px; }
-#game { width: 100%; aspect-ratio: 16 / 9; overflow: hidden; border: 1px solid #283650; border-radius: 12px; }
-canvas { display: block; }
-
-/* 小屏幕将悬浮栏放到底部并横向滚动，为游戏保留可用宽度。 */
+#app { min-height: 100dvh; }
+/* 导航悬浮在页面上方，不占用路由出口的布局空间。 */
+.app-navigation { position: fixed; left: 0; top: 50%; transform: translate(calc(-100% + 16px), -50%); transition: transform 200ms ease; z-index: 100; width: 200px; max-height: calc(100dvh - 32px); box-sizing: border-box; display: flex; flex-direction: column; gap: 12px; padding: 16px; overflow-y: auto; border: 1px solid #283650; border-radius: 16px; box-shadow: 0 12px 32px #0003; background: #101a2b; color: #e5edf9; font-family: system-ui, sans-serif; }
+/* 默认仅露出 16px 边缘；悬浮、触屏点按聚焦或键盘进入菜单时完整展开。 */
+.app-navigation:hover, .app-navigation:focus-within { transform: translate(12px, -50%); }
+.app-navigation a { padding: 10px; color: inherit; text-decoration: none; border-radius: 6px; }
+.app-navigation a:hover, .app-navigation a[aria-current="page"] { background: #153b3b; color: #55d6be; }
+.app-navigation a:focus-visible { outline: 2px solid #55d6be; }
+#route-outlet { min-height: 100dvh; }
+.library-page { padding: 32px; font-family: system-ui, sans-serif; }
+/* 窄屏使用底部悬浮菜单，同样不为导航预留页面空间。 */
 @media (max-width: 760px) {
-  #app { padding-left: 0; padding-bottom: 150px; }
-  main { padding: 28px 16px; }
-  h1 { font-size: 28px; }
-  .game-sidebar { left: 12px; right: 12px; bottom: 12px; top: auto; transform: none; width: auto; max-height: 125px; padding: 12px; }
-  .game-sidebar .eyebrow { display: none; }
-  .game-sidebar h2 { margin: 0 0 10px; font-size: 14px; }
-  #games { flex-direction: row; overflow-x: auto; }
-  #games button { width: auto; flex-shrink: 0; white-space: nowrap; }
+  .app-navigation { left: 12px; right: 12px; top: auto; bottom: 0; transform: translateY(calc(100% - 16px)); width: auto; flex-direction: row; align-items: center; gap: 8px; padding: 20px 8px 8px; overflow-x: auto; white-space: nowrap; }
+  .app-navigation:hover, .app-navigation:focus-within { transform: translateY(-12px); }
+  .app-navigation a { flex-shrink: 0; }
+}
+
+/* 遵循系统减少动态效果的设置，保留菜单展开行为。 */
+@media (prefers-reduced-motion: reduce) {
+  .app-navigation { transition: none; }
 }

@@ -1,0 +1,5 @@
+/* 本游戏独立管理页面背景、画布尺寸和布局。 */
+.word-defense-page { min-height: 100dvh; display: flex; justify-content: center; align-items: flex-start; background: #f4eedf; }
+.word-defense-canvas { width: min(100%, calc(100dvh * 480 / 784)); aspect-ratio: 480 / 784; overflow: hidden; }
+/* 触屏拖动用于布阵，不触发浏览器滚动或缩放手势。 */
+.word-defense-canvas canvas { display: block; touch-action: none; }
