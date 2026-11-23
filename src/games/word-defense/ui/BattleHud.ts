@@ -13,7 +13,6 @@ export class BattleHud {
   private readonly progress: Phaser.GameObjects.Text;
   private readonly toggleButton: PaperButton;
   private readonly menuButton: PaperButton;
-  private readonly removeButton: PaperButton;
   private readonly choices = new Map<number, PaperButton>();
   private readonly choiceGlyphs: Phaser.GameObjects.Text[] = [];
   private readonly choiceLevels: Phaser.GameObjects.Text[] = [];
@@ -28,7 +27,7 @@ export class BattleHud {
   private clearPlacementPreview: () => void = () => {};
 
   constructor(private readonly scene: Phaser.Scene, private readonly config: BattleConfig,
-    callbacks: { toggle: () => void; restart: () => void; choose: (slotIndex: number) => void; remove: () => void; refresh: () => void;
+    callbacks: { toggle: () => void; restart: () => void; choose: (slotIndex: number) => void; refresh: () => void;
       drop: (slotIndex: number, x: number, y: number) => void;
       hover: (x: number, y: number) => void; clearHover: () => void }) {
     const { colors, layout } = theme;
@@ -48,8 +47,8 @@ export class BattleHud {
     // 金币和刷新状态读取同一份世界快照，UI 不自行扣费。
     this.gold = scene.add.text(12, 532, '', textStyle(18, colors.gold));
     this.refreshButton = new PaperButton(scene, 360, 523, 108, 36, `刷新 · ${config.refreshCost}金`, callbacks.refresh);
-    // 召唤池右侧单独预留方形移除入口，与卡片同高、同圆角且无阴影。
-    paperPanel(panels, 6, 567, 406, 62, colors.panel, colors.line);
+    // 召唤池面板撑满画布宽度，左右各留 6px，也作为单位拖回的接收区域。
+    paperPanel(panels, 6, 567, layout.width - 12, 62, colors.panel, colors.line);
     Array.from({ length: 5 }, (_, index) => index).forEach(index => {
       const { cards } = layout;
       const x = cards.x + index * (cards.width + cards.gap);
@@ -80,15 +79,6 @@ export class BattleHud {
       });
       this.choices.set(index, button);
     });
-    this.removeButton = new PaperButton(scene, 420, 574, 48, 48, '', callbacks.remove,
-      false, false, { radius: 2, shadow: false });
-    // 使用矢量垃圾桶图标，避免不同设备的 emoji 外观和字体支持差异。
-    const removeIcon = scene.add.graphics().lineStyle(2, colors.ink);
-    removeIcon.lineBetween(14, 17, 34, 17);
-    removeIcon.strokeRoundedRect(17, 19, 14, 17, 2);
-    removeIcon.strokeRoundedRect(20, 12, 8, 5, 1);
-    removeIcon.lineBetween(22, 23, 22, 32).lineBetween(26, 23, 26, 32);
-    this.removeButton.root.add(removeIcon);
 
     // 倒计时不拦截输入，玩家在敌军出现前仍可选择兵种并落子。
     // 深墨色投影加大偏移，突出倒计时毛笔字与棋盘背景的层次。
@@ -122,7 +112,7 @@ export class BattleHud {
 
   /** 回池拖放覆盖整个召唤池面板，边界取自实际绘制的面板布局。 */
   containsSummonPool(x: number, y: number): boolean {
-    return x >= 6 && x <= 412 && y >= 567 && y <= 629;
+    return x >= 6 && x <= theme.layout.width - 6 && y >= 567 && y <= 629;
   }
 
   /** 根据固定卡位布局查找拖放目标，卡片间隙不算作合并目标。 */
@@ -139,7 +129,7 @@ export class BattleHud {
 
 
   /** 所有可操作状态从快照派生，不在 UI 中修改生命、波次或单位。 */
-  sync(state: GameSnapshot, selectedSlot: number | undefined, selectedId?: string): void {
+  sync(state: GameSnapshot, selectedSlot: number | undefined): void {
     const active = state.status === 'ready' || state.status === 'playing';
     const finished = state.status === 'victory' || state.status === 'defeat';
     if (!active) { this.clearDragPreview(); this.mergeSlot = undefined; }
@@ -159,7 +149,6 @@ export class BattleHud {
     this.toggleButton.setLabel({ ready: '出征 · 开始战斗', playing: '休整 · 暂停', paused: '继续战斗', victory: '演练完成', defeat: '城防失守' }[state.status]);
     this.toggleButton.setEnabled(!finished);
     this.menuButton.setEnabled(state.status === 'playing');
-    const selected = state.defenders.find(unit => unit.id === selectedId);
     // 空槽始终隐藏；拖入整个召唤池即可回池，不额外展示放回按钮。
     for (const [index, button] of this.choices) {
       const entry = state.summonPool[index];
@@ -184,7 +173,6 @@ export class BattleHud {
       button.setSelected(index === selectedSlot || index === this.mergeSlot);
       button.setEnabled(active && available);
     }
-    this.removeButton.setEnabled(active && Boolean(selected));
     this.overlay.setVisible(state.status === 'paused' || finished);
     this.result.setText(state.status === 'paused' ? '休整' : state.status === 'victory' ? '捷报' : '失守');
     this.result.setColor(cssColor(state.status === 'defeat' ? theme.colors.enemy : theme.colors.ally));

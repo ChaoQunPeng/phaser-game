@@ -50,7 +50,6 @@ export class BattleScene extends Phaser.Scene {
         // 点击池中已有单位用于部署，回池统一通过拖入召唤池区域完成。
         this.selectedSlot = slotIndex; this.selectedId = undefined;
       },
-      remove: () => this.removeSelected(),
       refresh: () => {
         const result = this.controller.dispatch({ type: 'REFRESH_POOL' });
         if (result.ok) { this.selectedSlot = undefined; this.grid.previewPlacement(); }
@@ -141,7 +140,7 @@ export class BattleScene extends Phaser.Scene {
       const result = this.controller.dispatch({ type: 'DROP_ON_UNIT', source: { unitId: drag.unitId }, target: { unitId: target.id } });
       if (result.ok) this.selectedId = target.id;
     }
-    // 整个召唤池面板都可接收，包含卡片间隙和留白；右侧删除按钮不属于此区域。
+    // 整个召唤池面板都可接收，包含卡片间隙和留白。
     else if (slotIndex >= 0 && this.hud.containsSummonPool(point.x, point.y)) {
       const result = this.controller.dispatch({ type: 'RETURN_UNIT', unitId: drag.unitId, slotIndex });
       if (result.ok) { this.selectedId = undefined; this.selectedSlot = slotIndex; }
@@ -222,14 +221,6 @@ export class BattleScene extends Phaser.Scene {
     this.grid.previewPlacement((active && canMerge) || valid ? cell : undefined);
   }
 
-  /** 只有选中单位时才执行移除命令。 */
-  private removeSelected(): void {
-    if (!this.selectedId) { return; }
-    const result = this.controller.dispatch({ type: 'REMOVE_UNIT', unitId: this.selectedId });
-    if (result.ok) this.selectedId = undefined;
-    
-  }
-
   /** 生命周期适配在渲染层处理，核心无需接触浏览器事件。 */
   private onInactive(): void { this.cancelBoardDrag(); this.controller.pause(); }
 
@@ -247,7 +238,7 @@ export class BattleScene extends Phaser.Scene {
     this.grid.syncOpenCells(state.openCells);
     this.defenders.sync(state); this.monsters.sync(state, this.controller.getMonsterRenderDelayMs());
     this.grid.select(state.defenders.find(unit => unit.id === this.selectedId)?.cell);
-    this.hud.sync(state, this.selectedSlot, this.selectedId);
+    this.hud.sync(state, this.selectedSlot);
   }
 
   /** 攻击显示弹道与受击圈；城防变化由 HUD 同步。 */
